@@ -1,4 +1,4 @@
-# muonato/check_winsw.sh @ GitHub (27-DEC-2024)
+# muonato/check_winsw.ps1 @ GitHub (27-DEC-2024)
 #
 # Reports installed software by reading 'DisplayName' and 'DisplayVersion'
 # keys under the hive 'HKEY_LOCAL_MACHINE\SOFTWARE\' in Windows registry
@@ -47,7 +47,7 @@ if ($args.count -eq 1) {
 # First param in argument string
 # formats output when 'LF' given
 if ($arry[0] -eq "LF") {
-    $apps = $arry | Where-Object { $_ –ne "LF" }
+    $apps = $arry | Where-Object { $_ â€“ne "LF" }
     $sepc = "`r`n"
 } else {
     $apps = $arry
