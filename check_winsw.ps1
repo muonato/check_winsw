@@ -9,7 +9,8 @@
 # Parameters:
 #       1: String with application names separated by comma
 #
-#       (OPTIONAL) First value formats output with 'LF' for line feed
+#       (OPTIONAL) Format output by using 'LF' as first comma separated
+#       value in argument string for line feed
 #
 # Examples:
 #       Check all installed software, default CSV output
