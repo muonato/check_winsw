@@ -13,19 +13,24 @@
 #
 # Examples:
 #       Check all installed software, default CSV output
-#       PS> check_winsw.ps1
+#       PS> check_winsw.ps1 "*"
+#
+#       Nagios monitoring plugin syntax, line feed output all
+#       check_nrpe -H $HOSTADDRESS$ -c check_winsw -a "LF,*"
 #
 #       Check two applications, line feed output
 #       PS> check_winsw.ps1 "LF,Microsoft Edge,VLC media player"
-#
-#       Check all installed, line feed output
-#       PS> check_winsw.ps1 "LF"
 
 function Get-WinSW([string]$regpath,[string]$separator) {
-    # Returns keys 'DisplayName' and 'DisplayVersion'
-    # under the Windows registry path input string
+    # Returns 'DisplayName' and 'DisplayVersion' keys
+    # when exist under Windows registry path string
+    
+    $winsw = (Get-ItemProperty $regpath | Select-Object DisplayName, DisplayVersion | ForEach-Object {
+        if (-not [string]::IsNullOrEmpty($_.DisplayName)) {
+            "{0} Version: {1}" -f $_.DisplayName, $_.DisplayVersion
+        }
+    }) -join $separator
 
-    $winsw = (Get-ItemProperty $regpath | Select-Object DisplayName, DisplayVersion | ForEach-Object {"{0} Version: {1}" -f $_.DisplayName, $_.DisplayVersion}) -join $separator
     "$winsw$separator"
 }
 
@@ -46,12 +51,6 @@ if ($arry[0] -eq "LF") {
     $sepc = "`r`n"
 } else {
     $apps = $arry
-}
-
-# Default to all children
-# when no input arguments
-if ($apps.count -eq 0) {
-    $apps = @("*")
 }
 
 foreach ($name in $apps) {
