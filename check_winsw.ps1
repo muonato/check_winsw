@@ -4,7 +4,7 @@
 # keys under the hive 'HKEY_LOCAL_MACHINE\SOFTWARE\' in Windows registry
 #
 # Usage:
-#       PS> check_winsw.ps1 "[LF][,<application registry hive>] ..."
+#       PS> check_winsw.ps1 "[LF][,<application registry key>] ..."
 #
 # Parameters:
 #       1: String with application names separated by comma
@@ -24,7 +24,6 @@
 
 function Get-WinSW([string]$regpath,[string]$format,[string]$product="DisplayName",[string]$version="DisplayVersion") {
     # Returns product and version keys in defined registry path
-    
     $winsw = ""
     Get-ItemProperty $regpath -ErrorAction SilentlyContinue | Select-Object $product, $version | ForEach-Object {
         if (-not ([string]::IsNullOrEmpty($_.$product))) {
@@ -33,7 +32,6 @@ function Get-WinSW([string]$regpath,[string]$format,[string]$product="DisplayNam
     }
     $winsw
 }
-
 $info = ""
 $fmtc = ", "
 $arry = @()
@@ -43,17 +41,15 @@ $arry = @()
 if ($args.count -eq 1) {
     $arry = $args[0].Split(",")
 }
-
 # First param in CSV argument string to 
 # format output with 'LF' for line feed
 if ($arry[0] -eq "LF") {
-    $apps = $arry | Where-Object { $_  ne "LF" }
+    $apps = $arry | Where-Object { $_ -ne "LF" }
     $fmtc = "`r`n"
 } else {
     $apps = $arry
 }
-
-# Loop registry hives defined by application name in the CSV argument string ('*' = all)
+# Loop registry hives defined in the CSV argument string by application name ('*' = all)
 foreach ($name in $apps) {
     $hive = "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\$name"
     $info = -join ($info,(Get-WinSW -regpath $hive -format "{0} ({1}) [Win32]$fmtc"))
