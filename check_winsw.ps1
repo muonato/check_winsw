@@ -1,4 +1,4 @@
-# muonato/check_winsw.ps1 @ GitHub (27-DEC-2024)
+# muonato/check_winsw.ps1 @ GitHub (28-DEC-2024)
 #
 # Reports installed software by reading 'DisplayName' and 'DisplayVersion'
 # keys under the hive 'HKEY_LOCAL_MACHINE\SOFTWARE\' in Windows registry
@@ -9,60 +9,61 @@
 # Parameters:
 #       1: String with application names separated by comma
 #
-#       (OPTIONAL) Format output by using 'LF' as first comma separated
-#       value in argument string for line feed
+#       (OPTIONAL) First value in parameter string
+#       formats output with 'LF' for line feed
 #
 # Examples:
 #       Check all installed software, default CSV output
 #       PS> check_winsw.ps1 "*"
 #
-#       Nagios monitoring plugin syntax, line feed output all
-#       check_nrpe -H $HOSTADDRESS$ -c check_winsw -a "LF,*"
+#       Opsview / Nagios host monitoring syntax
+#       check_nrpe -H $HOSTADDRESS$ -c check_winsw -a "*"
 #
 #       Check two applications, line feed output
 #       PS> check_winsw.ps1 "LF,Microsoft Edge,VLC media player"
 
-function Get-WinSW([string]$regpath,[string]$separator) {
-    # Returns 'DisplayName' and 'DisplayVersion' keys
-    # when exist under Windows registry path string
+function Get-WinSW([string]$regpath,[string]$format,[string]$product="DisplayName",[string]$version="DisplayVersion") {
+    # Returns product and version keys in defined registry path
     
-    $winsw = (Get-ItemProperty $regpath | Select-Object DisplayName, DisplayVersion | ForEach-Object {
-        if (-not [string]::IsNullOrEmpty($_.DisplayName)) {
-            "{0} Version: {1}" -f $_.DisplayName, $_.DisplayVersion
+    $winsw = ""
+    Get-ItemProperty $regpath -ErrorAction SilentlyContinue | Select-Object $product, $version | ForEach-Object {
+        if (-not ([string]::IsNullOrEmpty($_.$product))) {
+            $winsw = -join ($winsw, $format -f $_.$product, $_.$version)
         }
-    }) -join $separator
-
-    "$winsw$separator"
+    }
+    $winsw
 }
 
 $info = ""
-$sepc = ", "
+$fmtc = ", "
 $arry = @()
 
-# Expect single argument string 
-# for NSClient++ compatibility
+# Single argument string to support 
+# NSClient++ monitoring configuration
 if ($args.count -eq 1) {
     $arry = $args[0].Split(",")
 }
 
-# First param in argument string
-# formats output when 'LF' given
+# First param in CSV argument string to 
+# format output with 'LF' for line feed
 if ($arry[0] -eq "LF") {
-    $apps = $arry | Where-Object { $_ –ne "LF" }
-    $sepc = "`r`n"
+    $apps = $arry | Where-Object { $_  ne "LF" }
+    $fmtc = "`r`n"
 } else {
     $apps = $arry
 }
 
+# Loop registry hives defined by application name in the CSV argument string ('*' = all)
 foreach ($name in $apps) {
-    $hive = "HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\$name"
-    if (Get-ItemProperty -Path $hive -ErrorAction SilentlyContinue) {
-        $info += Get-WinSW $hive $sepc
-    }
-    $hive = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$name"
-    if (Get-ItemProperty -Path $hive -ErrorAction SilentlyContinue) {
-        $info += Get-WinSW $hive $sepc
-    }
+    $hive = "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\$name"
+    $info = -join ($info,(Get-WinSW -regpath $hive -format "{0} ({1}) [Win32]$fmtc"))
+
+    $hive = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$name"
+    $info = -join ($info,(Get-WinSW -regpath $hive -format "{0} ({1})$fmtc"))
 }
+# Windows version information to report as last value
+$hive = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+$info = -join ($info,(Get-WinSW -regpath $hive -format "{0} ({1})" -product "ProductName" -version "DisplayVersion"))
+
 Write-Host $info
 exit 0
