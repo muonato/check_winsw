@@ -21,7 +21,11 @@
 #
 #       Check matching keywords, line feed output
 #       PS> check_winsw.ps1 "LF,SQL,SSMS,VMware"
-
+#
+# Platform:
+#       NSClient++ (0.5.2.41 2018-04-26) for Nagios/Opsview
+#       Powershell 7.4.3
+#
 function Get-RegSW([string]$regpath,[string]$format,[string]$product="DisplayName",[string]$version="DisplayVersion") {
     # Returns an array of strings each formatted from two distinct key-value pairs in given registry hive
     
