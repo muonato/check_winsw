@@ -85,7 +85,7 @@ if (-not $keyw) {
             }
         }
     }
-    # Convert search results array to string
+    # Append search results array to string
     $info += $find -join $fmtc | Out-String
 }
 Write-Host $info
