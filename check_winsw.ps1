@@ -59,13 +59,14 @@ if ($keyw[0] -eq "LF") {
     $fmtc = ", "
 }
 
-# Script version information
+# Script version information to results string
 $info = "Opsview check_softw (20-JAN-2025)" + $fmtc
 
-# Software registry values of installed applications to array
+# Append OS version information to results string
 $hive = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
 $info += (Get-RegSW -regpath $hive -format "{0} (Build {1})" -product "ProductName" -version "CurrentBuild") + $fmtc
 
+# Software registry values of installed applications to array
 $hive = "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
 $apps += Get-RegSW -regpath $hive -format "{0} ({1}) [Win32]"
 
