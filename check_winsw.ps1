@@ -1,71 +1,88 @@
-# muonato/check_winsw.ps1 @ GitHub (29-DEC-2024)
+# muonato/check_winsw.ps1 @ GitHub (20-JAN-2025)
 #
-# Reports software version by matching name in argument string to
-# Windows registry key under the hive 'HKEY_LOCAL_MACHINE\SOFTWARE\'
+# Reports software by matching keywords in argument string to
+# registry key under the hive 'HKEY_LOCAL_MACHINE\SOFTWARE\'
 #
 # Usage:
-#       PS> check_winsw.ps1 "[LF][,<application>] ..."
+#       PS> check_winsw.ps1 "[LF][,<keyword>] ... [,<keyword>]"
 #
 # Parameters:
-#       1: String with application names separated by comma
+#       1: String of keywords separated by comma
 #
 #       (OPTIONAL) First value in parameter string
 #       formats output with 'LF' for line feed
 #
 # Examples:
-#       Check OS version only
-#       PS> check_winsw.ps1
+#       Check all installed
+#       PS> check_winsw.ps1 "LF"
 #
 #       Opsview / Nagios host monitoring syntax
-#       check_nrpe -H $HOSTADDRESS$ -c check_winsw -a "Microsoft"
+#       check_nrpe -H $HOSTADDRESS$ -c check_winsw -a "SQL,NSClient"
 #
-#       Check two applications, line feed output
-#       PS> check_winsw.ps1 "LF,SQL,VLC"
+#       Check matching keywords, line feed output
+#       PS> check_winsw.ps1 "LF,SQL,SSMS,VMware"
 
-function Get-WinSW([string]$regpath,[string]$software,[string]$format,[string]$product="DisplayName",[string]$version="DisplayVersion") {
-    # Returns matching product and version keys in defined registry path
+function Get-RegSW([string]$regpath,[string]$format,[string]$product="DisplayName",[string]$version="DisplayVersion") {
+    # Returns an array of strings each formatted from two distinct key-value pairs in given registry hive
     
-    $winsw = ""
+    $keys = @()
     Get-ItemProperty $regpath -ErrorAction SilentlyContinue | Select-Object $product, $version | ForEach-Object {
-        $match = "$_.$product" | Select-String $software
-
-        if (-not ([string]::IsNullOrEmpty($match))) {
-            $winsw = -join ($winsw, $format -f $_.$product, $_.$version)
+        if (-not [string]::IsNullOrEmpty($_.$product)) {
+            $keys += $format -f $_.$product, $_.$version
         }
     }
-    $winsw
+    $keys
 }
+# List apps
+$apps = @()
 
-$info = ""
-$fmtc = ", "
-$arry = @()
+# Find match
+$find = @()
 
-# Single argument string to support 
-# NSClient++ monitoring configuration
+# Arguments str to array
 if ($args.count -eq 1) {
-    $arry = $args[0].Split(",")
+    $keyw = $args[0].Split(",")
+} else {
+    $keyw = @()
 }
 
-# First param in CSV argument string to 
-# format output with 'LF' for line feed
-if ($arry[0] -eq "LF") {
-    $apps = $arry | Where-Object { $_ –ne "LF" }
+# First argument to define value
+# separator as comma or line feed
+if ($keyw[0] -eq "LF") {
+    $keyw = $keyw | Where-Object { $_ â€“ne "LF" }
     $fmtc = "`r`n"
 } else {
-    $apps = $arry
+    $fmtc = ", "
 }
 
-# Loop registry hives defined in the CSV argument string ('*' = all)
-foreach ($name in $apps) {
-    $hive = "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
-    $info = -join ($info,(Get-WinSW -regpath $hive -software $name -format "{0} ({1}) [Win32]$fmtc"))
+# Script version information
+$info = "Opsview check_softw (20-JAN-2025)" + $fmtc
 
-    $hive = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*"
-    $info = -join ($info,(Get-WinSW -regpath $hive -software $name -format "{0} ({1})$fmtc"))
-}
-# Windows version information to report as last value
+# Software registry values of installed applications to array
 $hive = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
-$info = -join ($info,(Get-WinSW -regpath $hive -software "Windows" -format "{0} (Build {1})" -product "ProductName" -version "CurrentBuild"))
+$info += (Get-RegSW -regpath $hive -format "{0} (Build {1})" -product "ProductName" -version "CurrentBuild") + $fmtc
 
+$hive = "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+$apps += Get-RegSW -regpath $hive -format "{0} ({1}) [Win32]"
+
+$hive = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*"
+$apps += Get-RegSW -regpath $hive -format "{0} ({1})"
+
+# Find keywords in apps array
+# and append to results array
+if (-not $keyw) {
+    $info += $apps -join $fmtc | Out-String
+} else {
+    foreach ($word in $keyw) {
+        $apps | ForEach-Object {
+            if ($_.Contains($word)) {
+                $find += $_
+            }
+        }
+    }
+    # Convert search results array to string
+    $info += $find -join $fmtc | Out-String
+}
 Write-Host $info
+
 exit 0
